@@ -11,6 +11,8 @@ namespace GetIntoTeachingApi.Models
     [Entity("msevtmgt_event")]
     public class TeachingEvent : BaseModel
     {
+        private string _name;
+
         public enum Status
         {
             Open = 222750000,
@@ -40,7 +42,18 @@ namespace GetIntoTeachingApi.Models
         [EntityField("dfe_isonlineevent")]
         public bool IsOnline { get; set; }
         [EntityField("dfe_externaleventtitle")]
-        public string Name { get; set; }
+        public string Name
+        {
+            get => _name;
+            set
+            {
+                _name = value;
+                CrmName = value;
+            }
+        }
+
+        [EntityField("msevtmgt_name")]
+        public string CrmName { get; set; }
         [EntityField("dfe_eventsummary_ml")]
         public string Summary { get; set; }
         [EntityField("dfe_miscellaneousmessage_ml")]
