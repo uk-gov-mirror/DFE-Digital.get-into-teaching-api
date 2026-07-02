@@ -1,6 +1,6 @@
 ## Please read this first.
 
-- The documents that are here are just a ruby developer's interpretation of what is happening in this API app. Mistakes or injuries are almost guaranteed. So please check existing code and swagger doc for reference. https://getintoteachingapi-test.test.teacherservices.cloud/swagger/index.html
+- The documents that are here are just a ruby developer's interpretation of what is happening in this API app. Mistakes or inaccuracies are almost guaranteed. So please check existing code and swagger doc for reference. https://getintoteachingapi-test.test.teacherservices.cloud/swagger/index.html
 - If some documents format a 200 response differently then what the actual CRM api returns. It means we made a mistake. Generally whatever the endpoint returns now, we want it to still return after the refactor. Unless we specify in proposed changes
 - At the end of some files, there are proposed changes which we would like to be implemented if it's possible. This can be discussed further.
 
