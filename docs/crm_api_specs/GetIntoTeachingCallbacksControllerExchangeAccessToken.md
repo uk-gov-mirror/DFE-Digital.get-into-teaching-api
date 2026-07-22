@@ -72,14 +72,14 @@ Returns a full `GetIntoTeachingCallback` JSON with the candidate's existing CRM 
 
 Only `CandidateId`, `Email`, `FirstName`, `LastName`, `AddressTelephone` are populated from CRM. All other fields are null or computed from `ICreateContactChannel` interface defaults.
 
-### `401 Unauthorized` — This is a new proposed error format
+### `404 Unauthorized` — candidate not found. New proposed error format
 
 ```json
 {
     "errors": [
         {
-            "error": "BadRequest",
-            "message": "You did not supply valid authentication credentials"
+            "error": "NotFound",
+            "message": "Candidate not found"
         }
     ]
 }
@@ -107,3 +107,21 @@ flowchart TD
     V -->|invalid| 401
     V -->|valid| Populate --> R
 ```
+
+## Proposed changes
+
+### GET `/api/get_into_teaching/callbacks`
+
+### Field details
+
+| Param | Type | Required | Notes |
+|-------|------|----------|-------|
+| `email` | `string` | **Yes** | |
+| `firstName` | `string` | No | |
+| `lastName` | `string` | No | |
+| `dateOfBirth` | `DateTime` | No | |
+| `reference` | `string` | No | |
+
+- This endpoint will not have to validate a token anymore. It will not know about the concept of a token.
+- The Ruby api layer will validate the token
+- This endpoint should just return 200 along with the existing body. It will be a search endpoint. 

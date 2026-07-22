@@ -18,61 +18,6 @@ Finds an existing candidate in CRM by email, generates a 6-digit TOTP PIN from t
 7. Emails the PIN via GOV.UK Notify using `NewPinCodeEmailTemplateId` template with `pin_code` and `first_name` personalisation
 8. Returns `204 No Content` immediately (doesn't wait for email delivery)
 
-## Request
-
-```json
-{
-  "email": "candidate@example.com",
-  "firstName": "Jane",
-  "lastName": "Doe",
-  "dateOfBirth": "1995-06-15",
-  "reference": "TTA"
-}
-```
-
-| Param | Type | Required | Notes |
-|-------|------|----------|-------|
-| `email` | `string` | **Yes** | Validated for format + max 100 chars |
-| `firstName` | `string` | No | Used in TOTP compound secret + email greeting |
-| `lastName` | `string` | No | Used in TOTP compound secret |
-| `dateOfBirth` | `DateTime` | No | Used in TOTP compound secret |
-| `reference` | `string` | No | Fallback to JWT client ID if not provided; used for metrics only, excluded from TOTP |
-
-## Responses
-
-### `204 No Content`
-
-PIN was generated and emailed. No body.
-
-### `400 Bad Request` — invalid email. New proposed error format
-
-```json
-{
-    "errors": [
-        {
-            "error": "BadRequest",
-            "message": "Email is not a valid email address"
-        }
-    ]
-}
-```
-
-### `404 Not Found` — candidate not found or CRM paused. New proposed error format
-
-
-```json
-{
-    "errors": [
-        {
-            "error": "NotFound",
-            "message": "Candidate with #{email} not found"
-        }
-    ]
-}
-```
-
-No body. The same status is returned for both cases to avoid revealing candidate existence.
-
 ## Flow
 
 ```mermaid
@@ -102,3 +47,55 @@ flowchart TD
 - Compound secret: `Slugify(email-firstName-lastName-DOB) + TOTP_SECRET_KEY` (env var)
 - Never stored in the database — purely recomputed on verification
 - Same post request body must be passed to the `exchange_access_token` endpoint or the TOTP won't match
+
+## Proposed changes
+
+# GET `/api/candidates`
+
+This endpoint will just verify if the candidate exists. It won't generate the PIN and send emails.
+
+- Will be a GET endpoint
+- Live CRM query: searches `emailaddress1`/`emailaddress2` for equivalent email variants (gmail.com ↔ googlemail.com), active candidates only
+- Also searches by the additional request params
+- If candidate found — returns `200`
+- If no candidate found — returns `404`
+
+## Request
+
+```json
+{
+  "email": "candidate@example.com",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "dateOfBirth": "1995-06-15",
+  "reference": "TTA"
+}
+```
+
+| Param | Type | Required |
+|-------|------|----------|
+| `email` | `string` | **Yes** |
+| `firstName` | `string` | No |
+| `lastName` | `string` | No |
+| `dateOfBirth` | `DateTime` | No |
+| `reference` | `string` | No |
+
+## Responses
+
+### `200`
+
+No body.
+
+### `404 Not Found` — candidate not found. New proposed error format
+
+
+```json
+{
+    "errors": [
+        {
+            "error": "NotFound",
+            "message": "Candidate with #{email} not found"
+        }
+    ]
+}
+```

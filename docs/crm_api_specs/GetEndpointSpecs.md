@@ -1683,6 +1683,13 @@ field mapping below).
 - Data served from local PostgreSQL cache — not a live CRM call.
 - Requires `Admin` or `GetIntoTeaching` role.
 
+## Proposed changes
+
+- Remove the cache that is currently in the CRM API. And live search the CRM.
+- The CRM API will still be responsible for searching by radius. It will probably need to save the lat and long to do this.
+- The lat and long will not come from the clients.
+- The CRM will not care about roles like Admin or GetIntoTeaching
+
 ## **Endpoint:** `GET /api/teaching_events/{readableId}`
 
 **Description:** Returns a single teaching event by its human-readable URL slug (`readableId`).
@@ -1704,3 +1711,7 @@ search response).
 - Data served from local PostgreSQL cache — not a live CRM call.
 - The `Building` is always eagerly loaded (joined) in this query.
 - Requires `Admin` or `GetIntoTeaching` role.
+
+## Proposed changes
+- Live search the CRM. No cache.
+- Should not care about roles, like Admin or GetIntoTeaching

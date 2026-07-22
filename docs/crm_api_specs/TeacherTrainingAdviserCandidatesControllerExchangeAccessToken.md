@@ -81,14 +81,14 @@ Returns a full `TeacherTrainingAdviserSignUp` JSON with the candidate's existing
 }
 ```
 
-### `401 Unauthorized` — candidate not found or PIN invalid. New proposed error format
+### `404 Unauthorized` — candidate not found. New proposed error format
 
 ```json
 {
     "errors": [
         {
-            "error": "Unauthorized",
-            "message": "Candidate not found or access token is invalid"
+            "error": "NotFound",
+            "message": "Candidate not found"
         }
     ]
 }
@@ -114,3 +114,21 @@ flowchart TD
     V -->|invalid| 401
     V -->|valid| Prepop --> R
 ```
+
+## Proposed changes
+
+### GET `/api/teacher_training_adviser/candidates`
+
+### Field details
+
+| Param | Type | Required | Notes |
+|-------|------|----------|-------|
+| `email` | `string` | **Yes** | |
+| `firstName` | `string` | No | |
+| `lastName` | `string` | No | |
+| `dateOfBirth` | `DateTime` | No | |
+| `reference` | `string` | No | |
+
+- This endpoint will not have to validate a token anymore. It will not know about the concept of a token.
+- The Ruby api layer will validate the token
+- This endpoint should just return 200 along with the existing body. It will be a search endpoint. 

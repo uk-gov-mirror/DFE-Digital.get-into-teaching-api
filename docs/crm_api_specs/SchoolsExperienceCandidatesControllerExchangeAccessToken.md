@@ -91,20 +91,14 @@ Body is a pre-populated `SchoolsExperienceSignUp` with fields filled from the ma
 
 See the full field reference in [`SchoolsExperienceCandidatesControllerSignUp.md`](SchoolsExperienceCandidatesControllerSignUp.md).
 
-### `401 Unauthorized` — candidate not found or invalid token
-
-No body. Response indicates either:
-- The candidate could not be matched from the provided details
-- The access token is expired, invalid, or doesn't match the request payload
-
-### `400 Bad Request` — invalid email. New proposed error format
+### `404 Unauthorized` — candidate not found. New proposed error format
 
 ```json
 {
     "errors": [
         {
-            "error": "BadRequest",
-            "message": "Email must not be empty"
+            "error": "NotFound",
+            "message": "Candidate not found"
         }
     ]
 }
@@ -126,3 +120,21 @@ flowchart TD
     TV -->|yes| OK
     TV -->|no| UNAUTH
 ```
+
+## Proposed changes
+
+### GET `/api/schools_experience/candidates
+
+### Field details
+
+| Param | Type | Required | Notes |
+|-------|------|----------|-------|
+| `email` | `string` | **Yes** | Must be a valid email (validated by `[ApiController]` model binding) |
+| `firstName` | `string` | No | |
+| `lastName` | `string` | No | |
+| `dateOfBirth` | `date` | No | |
+| `reference` | `string` | No | |
+
+- This endpoint will not have to validate a token anymore. It will not know about the concept of a token.
+- The Ruby api layer will validate the token
+- This endpoint should just return 200 along with the existing body. It will be a search endpoint. 

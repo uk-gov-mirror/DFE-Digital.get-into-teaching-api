@@ -76,14 +76,14 @@ Returns a pre-populated `MailingListAddMember`. Only the following fields are po
 }
 ```
 
-### `401 Unauthorized` — candidate not found or PIN invalid. New proposed error format
+### `404 Unauthorized` — candidate not found. New proposed error format
 
 ```json
 {
     "errors": [
         {
-            "error": "Unauthorized",
-            "message": "Candidate not found or access token is invalid"
+            "error": "NotFound",
+            "message": "Candidate not found"
         }
     ]
 }
@@ -106,3 +106,21 @@ flowchart TD
     D -->|yes| 401
     D -->|no| R --> 200
 ```
+
+## Proposed changes
+
+### GET `/api/mailing_list/members`
+
+### Field details
+
+| Param | Type | Required | Notes |
+|-------|------|----------|-------|
+| `email` | `string` | **Yes** | Validated for format + max 100 chars |
+| `firstName` | `string` | No | Used in matchback (may improve match quality) |
+| `lastName` | `string` | No | Used in matchback |
+| `dateOfBirth` | `DateTime` | No | Used in matchback |
+| `reference` | `string` | No | Fallback to JWT client ID if not provided |
+
+- This endpoint will not have to validate a token anymore. It will not know about the concept of a token.
+- The Ruby api layer will validate the token
+- This endpoint should just return 200 along with the existing body. It will be a search endpoint. 
