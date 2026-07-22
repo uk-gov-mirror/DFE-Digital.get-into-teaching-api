@@ -129,7 +129,7 @@ flowchart TD
 
 | Param | Type | Required | Notes |
 |-------|------|----------|-------|
-| `email` | `string` | **Yes** | Must be a valid email (validated by `[ApiController]` model binding) |
+| `email` | `string` | **Yes** | |
 | `firstName` | `string` | No | |
 | `lastName` | `string` | No | |
 | `dateOfBirth` | `date` | No | |

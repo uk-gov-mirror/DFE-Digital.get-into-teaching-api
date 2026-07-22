@@ -115,11 +115,11 @@ flowchart TD
 
 | Param | Type | Required | Notes |
 |-------|------|----------|-------|
-| `email` | `string` | **Yes** | Validated for format + max 100 chars |
-| `firstName` | `string` | No | Used in matchback (may improve match quality) |
-| `lastName` | `string` | No | Used in matchback |
-| `dateOfBirth` | `DateTime` | No | Used in matchback |
-| `reference` | `string` | No | Fallback to JWT client ID if not provided |
+| `email` | `string` | **Yes** | |
+| `firstName` | `string` | No | |
+| `lastName` | `string` | No | |
+| `dateOfBirth` | `DateTime` | No | |
+| `reference` | `string` | No | |
 
 - This endpoint will not have to validate a token anymore. It will not know about the concept of a token.
 - The Ruby api layer will validate the token
