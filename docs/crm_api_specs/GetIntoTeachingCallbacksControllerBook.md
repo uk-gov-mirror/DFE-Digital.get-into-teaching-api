@@ -7,19 +7,6 @@ https://getintoteachingapi-test.test.teacherservices.cloud/swagger/index.html
 
 Schedules a callback (phone call) for a candidate. Validates the request, builds a `Candidate` with minimal business logic (phone call + privacy policy), serializes with change tracking, and enqueues an `UpsertCandidateJob` to persist to CRM. Returns `204 No Content` — CRM upsert is async.
 
-## What it does (step by step)
-
-1. Validates the request (ModelState via FluentValidation `GetIntoTeachingCallbackValidator`) — returns `400` with serialized errors if invalid
-2. Constructs a `Candidate` via `request.Candidate` (calls `CreateCandidate()`):
-   - **Maps scalar fields**: candidate ID, email, first name, last name, address telephone
-   - **Configures channel** via `ConfigureChannel()`: sets `ChannelId` (GetIntoTeachingCallback when `DISABLE_DEFAULT_CREATION_CHANNELS=1` and candidate is new), or creates `ContactChannelCreation` entries with `CreationChannelSourceId` (GIT Website), `CreationChannelServiceId` (Mailing List), `CreationChannelActivityId` (null)
-   - **Schedules phone call** (if `PhoneCallScheduledAt` is set):
-     - Creates a `PhoneCall` with destination **hardcoded to UK**, channel `WebsiteCallbackRequest`, subject including full name, and `TalkingPoints`
-   - **Accepts privacy policy**: if `AcceptedPolicyId` is set, creates a `CandidatePrivacyPolicy` with the accepted policy ID and current timestamp
-3. Serializes the constructed candidate with change tracking (`SerializeChangeTracked`)
-4. Enqueues `UpsertCandidateJob.Run(json, null)` via Hangfire (async CRM upsert)
-5. Returns `204 No Content`
-
 ## Request
 
 ```json
@@ -69,35 +56,3 @@ No body.
     ]
 }
 ```
-
-## What happens next (async job)
-
-The `UpsertCandidateJob` runs asynchronously (same job as all other upsert endpoints):
-
-1. **Deduplication**: if a job with the same signature (`candidate.Id + Email + changed properties`) is already queued, the duplicate is silently dropped
-2. **CRM pause check**: throws `InvalidOperationException` if CRM integration is paused (Hangfire retry will fire)
-3. **Upsert**: calls `ICandidateUpserter.Upsert(candidate)` to persist the candidate, phone call, privacy policy, and contact channel creation to CRM
-4. **Retry & failure**: on repeated failure, after all retries exhausted, sends a failure notification email via GOV.UK Notify (`CandidateRegistrationFailedEmailTemplateId`)
-
-## Flow
-
-```mermaid
-flowchart TD
-    Client["Client App"]
-    B["Book()"]
-    V["1. Validate request\n(FluentValidation)"]
-    C["2. Build Candidate via CreateCandidate()\n━━━━━━━━━━━━━━━━━━━━━━\n• Map scalars (name, email, phone)\n• Configure channel\n• Schedule phone call (UK only)\n• Accept privacy policy"]
-    J["3. Serialize + enqueue\nUpsertCandidateJob"]
-    R["4. 204 No Content"]
-
-    Client --> B --> V
-    V -->|invalid| 400
-    V -->|valid| C --> J --> R
-```
-
-## Rate limiting
-
-| Scope | Endpoint | Period | Limit |
-|-------|----------|--------|-------|
-| Global (IpRateLimiting) | `POST:/api/get_into_teaching/callbacks` | 1m | 60 |
-| GIT client | `POST:/api/get_into_teaching/callbacks` | 1m | 250 |
