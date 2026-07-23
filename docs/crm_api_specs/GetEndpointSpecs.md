@@ -610,7 +610,7 @@ field in Dynamics.
 
 | Dynamics source                                                                                        | CRM API response field |
 |--------------------------------------------------------------------------------------------------------|------------------------|
-| `PickListItemId` (from metadata for entity `dfe_candidatequalification`, attribute `dfe_degreestatus`) | `id` (integer)         |
+| `PickListItemId` (from metadata for entity `dfe_candidatequalification`, attribute `dfe_degreestatusbygraduationyearnew`) | `id` (integer)         |
 | `DisplayLabel` (from metadata for entity `dfe_candidatequalification`, attribute `dfe_degreestatus`)   | `value` (string)       |
 
 **Response format:**
@@ -1082,9 +1082,14 @@ entity's `dfe_creationchannelactivities` field in Dynamics.
 ## **Endpoint:** `GET /api/callback_booking_quotas`
 
 **Description:** Returns all available callback booking time slots directly from the CRM (`dfe_callbackbookingquota`
-entity). Unlike most read endpoints this is a **live CRM call at request time** — data is not cached locally. If the CRM
-is unreachable, a synthetic fallback list of quotas is generated server-side (weekdays only, 09:00–17:00 in 30-minute
-slots, for the next 5 working days).
+entity). This is a **live CRM call at request time**. If the CRM is unreachable, a synthetic fallback list of quotas is generated server-side (weekdays only, 09:00–17:00 in 30-minute slots, for the next 5 working days).
+
+**Query parameters:**
+
+| Parameter | Type           |
+|-----------|----------------|
+| `startAt` | `datetime`  |
+| `endAt`   | `datetime`  |
 
 **CRM-side mapping:**
 
@@ -1124,7 +1129,6 @@ slots, for the next 5 working days).
 - This endpoint calls Dynamics at request time — there is no local cache. If CRM is unreachable, the service generates a
   synthetic fallback list of open slots (09:00–17:00, 30-minute intervals, next 5 weekdays). The CRM API should define
   whether this fallback behaviour moves there or stays in Rails.
-- Requires `Admin`, `GetAnAdviser`, or `GetIntoTeaching` role.
 
 ## **Endpoint:** `GET /api/schools_experience/candidates`
 
@@ -1211,7 +1215,6 @@ Calls the CRM directly at request time (not cached).
 - The telephone field applies the same fallback logic as the single-candidate endpoint: `AddressTelephone` with
   `StripExitCode()`, falling back through `Telephone`, `MobileTelephone`, `SecondaryTelephone` (whichever is first
   non-blank).
-- Requires `Admin` or `SchoolsExperience` role.
 
 ## **Endpoint:** `GET /api/schools_experience/candidates/{id}`
 
@@ -1232,13 +1235,11 @@ above.
 
 **Notes:**
 
-- Calls `ICrmService.GetCandidate(id)` at request time — live CRM call, no local cache.
-- Requires `Admin` or `SchoolsExperience` role.
+- Calls `ICrmService.GetCandidate(id)` at request time — live CRM call
 
 ## **Endpoint:** `GET /api/lookup_items/countries`
 
-**Description:** Returns the full list of countries from the local PostgreSQL cache (synced from Dynamics `dfe_country`
-entity), sorted alphabetically by name.
+**Description:** Returns the full list of countries, sorted alphabetically by name.
 
 **CRM-side mapping:**
 
@@ -1272,12 +1273,10 @@ controller re-sorts by `value` before returning.
 
 - Unlike pick list items, countries are lookup entities (full records with GUIDs, not metadata option-set integers), and
   include an `isoCode` field (`dfe_countrykey`) not present in pick list responses.
-- Data is served from the local PostgreSQL cache (synced periodically from Dynamics), not a live CRM call.
 
 ## **Endpoint:** `GET /api/lookup_items/degree_countries`
 
-**Description:** Returns a filtered subset of countries — only those valid for degree country selection. Currently
-hardcoded to two entries: United Kingdom and a generic "Another Country" option.
+**Description:** Currently hardcoded to two entries: United Kingdom and a generic "Another Country" option.
 
 **CRM-side mapping:** Same field mapping as `/api/lookup_items/countries`.
 
@@ -1310,8 +1309,7 @@ hardcoded to two entries: United Kingdom and a generic "Another Country" option.
 
 ## **Endpoint:** `GET /api/lookup_items/teaching_subjects`
 
-**Description:** Returns the full list of teaching subjects from the local PostgreSQL cache (synced from Dynamics
-`dfe_teachingsubjectlist` entity), sorted alphabetically by name.
+**Description:** Returns the full list of teaching subjects sorted alphabetically by name.
 
 **CRM-side mapping:**
 
@@ -1342,156 +1340,16 @@ hardcoded to two entries: United Kingdom and a generic "Another Country" option.
 - Like countries, teaching subjects are lookup entities (GUID + name), not pick list integers.
 - The well-known "Primary" subject GUID (`b02655a1-2afa-e811-a981-000d3a276620`) is a constant used in business logic
   elsewhere (e.g. to default teaching subject when phase is Primary).
-- Data is served from the local PostgreSQL cache, not a live CRM call.
-
-## **Endpoint:** `GET /api/mailing_list/members/exchange_magic_link_token/{magicLinkToken}`
-
-**Description:** Validates a one-time magic link token against the CRM and, if valid, returns a pre-populated
-`MailingListAddMember` for the matched candidate. Also triggers a side effect: the candidate's token status is marked as
-`Exchanged` in the CRM (via a background upsert job).
-
-**Path parameters:**
-
-| Parameter        | Type   | Description                                                                             |
-|------------------|--------|-----------------------------------------------------------------------------------------|
-| `magicLinkToken` | string | A 32-character hex token previously issued via `POST /api/candidates/magic_link_tokens` |
-
-**Token resolution:**
-
-| Step                    | What happens                                                                                                                                |
-|-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|
-| Token lookup            | `ICrmService.MatchCandidates(token)` — queries Dynamics for a `contact` where `dfe_websitemltoken` matches the provided token               |
-| Must be exactly 1 match | 0 matches → `401 Unauthorized`. More than 1 match (token collision) → `401 Unauthorized`                                                    |
-| Mark token used         | Sets `dfe_websitemltokenstatus = Exchanged` on the matched candidate, then enqueues `UpsertCandidateJob` to persist this change to Dynamics |
-| Response mapping        | Maps `Candidate` → `MailingListAddMember` (see table below)                                                                                 |
-
-**CRM-side mapping** (entity: `contact` + related `dfe_candidatequalification`):
-
-| Dynamics field                                                                                          | Response field                                     | Notes                        |
-|---------------------------------------------------------------------------------------------------------|----------------------------------------------------|------------------------------|
-| `contact` Entity `Id`                                                                                   | `candidateId` (Guid?)                              |                              |
-| `emailaddress1`                                                                                         | `email` (string)                                   |                              |
-| `firstname`                                                                                             | `firstName` (string)                               |                              |
-| `lastname`                                                                                              | `lastName` (string)                                |                              |
-| `address1_postalcode`                                                                                   | `addressPostcode` (string)                         |                              |
-| `dfe_preferredteachingsubject01` (EntityRef → `dfe_teachingsubjectlist`)                                | `preferredTeachingSubjectId` (Guid?)               |                              |
-| `dfe_websitewhereinconsiderationjourney` (OptionSet)                                                    | `considerationJourneyStageId` (int?)               |                              |
-| `dfe_welcomeguidestring`                                                                                | `welcomeGuideVariant` (string)                     |                              |
-| `dfe_situation` (OptionSet)                                                                             | `situation` (int?)                                 |                              |
-| Latest `dfe_candidatequalification` (by `createdon`): Entity `Id`                                       | `qualificationId` (Guid?)                          |                              |
-| Latest `dfe_candidatequalification`: `dfe_degreestatus` (OptionSet)                                     | `degreeStatusId` (int?)                            |                              |
-| `dfe_gitismlserviceissubscriber` (bool)                                                                 | `alreadySubscribedToMailingList` (bool)            | Direct field read            |
-| `dfe_gitiseventsserviceissubscriber` (bool)                                                             | `alreadySubscribedToEvents` (bool)                 | Direct field read            |
-| `dfe_gitisttaserviceissubscriber == true` OR `owningbusinessunit == AdviserBusinessUnitId` *(computed)* | `alreadySubscribedToTeacherTrainingAdviser` (bool) | Derived — not a single field |
-
-**Response format (success):**
-
-```json
-{
-  "candidateId": "11111111-1111-1111-1111-111111111111",
-  "email": "jane.doe@example.com",
-  "firstName": "Jane",
-  "lastName": "Doe",
-  "addressPostcode": "TE1 1ST",
-  "preferredTeachingSubjectId": "22222222-2222-2222-2222-222222222222",
-  "considerationJourneyStageId": 1,
-  "welcomeGuideVariant": "A",
-  "situation": 2,
-  "qualificationId": "33333333-3333-3333-3333-333333333333",
-  "degreeStatusId": 2,
-  "alreadySubscribedToMailingList": false,
-  "alreadySubscribedToEvents": false,
-  "alreadySubscribedToTeacherTrainingAdviser": false
-}
-```
-
-**Response (failure):** `401 Unauthorized` with a `CandidateMagicLinkExchangeResult` body indicating failure reason.
-
-**Notes:**
-
-- **Transformation:** `alreadySubscribedToMailingList`, `alreadySubscribedToEvents`,
-  `alreadySubscribedToTeacherTrainingAdviser` are computed booleans derived from the candidate's current subscription
-  state in the CRM — they are not direct field reads.
-- **Side effect:** This GET has a write side effect — the token is invalidated (marked `Exchanged`) and a background
-  upsert is enqueued. This is architecturally unusual for a GET endpoint.
-- Magic link tokens are 48-hour one-time tokens (128-bit random hex), generated separately via
-  `POST /api/candidates/magic_link_tokens`.
-- Requires `Admin` or `GetIntoTeaching` role.
-
-## **Endpoint:** `GET /api/operations/generate_mapping_info`
-
-**Description:** Returns introspection data describing how each C# model class maps to a Dynamics 365 entity and its
-fields. Intended as a developer/debugging aid — not a CRM data read.
-
-**CRM-side mapping:** None. This endpoint uses .NET reflection to enumerate all classes that extend `BaseModel` and
-reads their `[Entity]`, `[EntityField]`, and `[EntityRelationship]` attributes.
-
-**Response format:**
-
-```json
-[
-  {
-    "class": "GetIntoTeachingApi.Models.Crm.Candidate",
-    "logicalName": "contact",
-    "fields": {
-      "Email": {
-        "name": "emailaddress1",
-        "type": "System.String",
-        "reference": null
-      }
-    },
-    "relationships": {
-      "Qualifications": {
-        "name": "dfe_contact_dfe_candidatequalification_ContactId",
-        "type": "GetIntoTeachingApi.Models.Crm.CandidateQualification"
-      }
-    }
-  }
-]
-```
-
-**Notes:**
-
-- No CRM call is made — this is pure reflection over the assembled code. No authentication is required (no `[Authorize]`
-  attribute on this action).
-- This endpoint is internal tooling. It is unlikely to have a direct equivalent in the new CRM API, but may be useful as
-  a reference for the CRM API team to verify their own field mappings.
 
 ## **Endpoint:** `GET /api/operations/health_check`
 
-**Description:** Returns the operational status of all dependent services: PostgreSQL database, Hangfire job queue,
-Dynamics CRM, GOV.UK Notify, and Redis.
-
-**CRM-side mapping:** None — the CRM is pinged via `ICrmService.CheckStatus()` which performs a lightweight connectivity
-check. The result is a plain string (`"ok"` or an error description).
-
 **Response format:**
 
-```json
-{
-  "gitCommitSha": "abc1234",
-  "environment": "production",
-  "database": "ok",
-  "hangfire": "ok",
-  "crm": "ok",
-  "notify": "ok",
-  "redis": "ok",
-  "status": "healthy"
-}
-```
-
-**Notes:**
-
-- **Transformation:** The `status` field is computed from the individual service statuses: `"healthy"` if all services
-  return `"ok"`, `"degraded"` if only non-critical services (`crm`, `notify`, `redis`) are unhealthy while critical
-  services (`database`, `hangfire`) are ok, `"unhealthy"` if any critical service is down.
-- No `[Authorize]` attribute — this endpoint is publicly accessible.
-- This endpoint is internal infrastructure tooling and will likely remain owned by the Rails API rather than delegating
-  to the CRM API.
+`200 OK`
 
 ## **Endpoint:** `GET /api/privacy_policies/latest`
 
-**Description:** Returns the most recently created privacy policy from the local PostgreSQL cache.
+**Description:** Returns the most recently created privacy policy. 
 
 **CRM-side mapping:**
 
@@ -1515,9 +1373,7 @@ check. The result is a plain string (`"ok"` or an error description).
 
 - **Transformation:** "Latest" is determined by sorting on `createdAt` descending and taking the first record — this
   ordering happens in the application, not in Dynamics.
-- Data is served from the local PostgreSQL cache (`dfe_privacypolicy` entity synced periodically). The cache only stores
   `Type.Web` policies (type code `222750001`).
-- Requires any authenticated role.
 
 ## **Endpoint:** `GET /api/privacy_policies/{id}`
 
@@ -1529,19 +1385,14 @@ check. The result is a plain string (`"ok"` or an error description).
 |-----------|--------|-------------------------|
 | `id`      | `Guid` | The privacy policy GUID |
 
-**CRM-side mapping:** Same field mapping as `GET /api/privacy_policies/latest`. Returns `404 Not Found` if no policy
-with the given ID exists in the local cache.
+**CRM-side mapping:** Same field mapping as `GET /api/privacy_policies/latest`. Returns `404 Not Found` if no policy with the given ID exists
 
 **Response format:** Single `PrivacyPolicy` object (same shape as `/latest`).
 
-**Notes:**
-
-- Data served from local PostgreSQL cache — not a live CRM call.
-- Requires any authenticated role.
 
 ## **Endpoint:** `GET /api/teaching_event_buildings`
 
-**Description:** Returns all teaching event venue buildings from the local PostgreSQL cache.
+**Description:** Returns all teaching event venue buildings.
 
 **CRM-side mapping:**
 
@@ -1574,19 +1425,14 @@ with the given ID exists in the local cache.
 ]
 ```
 
-**Ordering:** As stored in the local cache (no ordering applied in code).
-
 **Notes:**
 
 - **Transformation:** The `Coordinate` (PostGIS geography point) is stored in PostgreSQL and used for proximity
   searches (see `teaching_events/search`) but is excluded from the API response via `[JsonIgnore]`.
-- Data served from local PostgreSQL cache — not a live CRM call.
-- Requires `Admin` or `GetIntoTeaching` role.
 
 ## **Endpoint:** `GET /api/teaching_events/search`
 
-**Description:** Searches the local PostgreSQL cache for teaching events matching the given filters. Optionally limits
-results by proximity (radius in miles from a postcode).
+**Description:** Searches teaching events matching the given filters. Optionally limits results by proximity (radius in miles from a postcode).
 
 **Query parameters:**
 
@@ -1602,7 +1448,7 @@ results by proximity (radius in miles from a postcode).
 | `accessibilityOptions` | int[] (CSV) | —                        | Filter by accessibility option IDs             |
 | `quantity`             | int         | 10                       | Maximum number of results to return            |
 
-**CRM-side mapping:** Events are stored in the local cache from Dynamics `msevtmgt_event` entity (see `TeachingEvent`
+**CRM-side mapping:** Events are stored in Dynamics `msevtmgt_event` entity (see `TeachingEvent`
 field mapping below).
 
 | Dynamics field                                              | Response field                    | Notes                                                                                         |
@@ -1680,15 +1526,6 @@ field mapping below).
     - Radius search: converts `radius` (miles) to km (`* 1.60934`) and uses PostGIS geography queries against the
       building's `Coordinate` column.
     - `statusIds` defaults to `[Open, Closed]` (not Draft or Pending) if not provided.
-- Data served from local PostgreSQL cache — not a live CRM call.
-- Requires `Admin` or `GetIntoTeaching` role.
-
-## Proposed changes
-
-- Remove the cache that is currently in the CRM API. And live search the CRM.
-- The CRM API will still be responsible for searching by radius. It will probably need to save the lat and long to do this.
-- The lat and long will not come from the clients.
-- The CRM will not care about roles like Admin or GetIntoTeaching
 
 ## **Endpoint:** `GET /api/teaching_events/{readableId}`
 
@@ -1700,18 +1537,7 @@ field mapping below).
 |--------------|--------|-----------------------------------------------|
 | `readableId` | string | The event's `dfe_websiteeventpartialurl` slug |
 
-**CRM-side mapping:** Same field mapping as the search endpoint above. Returns `404 Not Found` if no event with the
-given `readableId` exists in the local cache.
+**CRM-side mapping:** Same field mapping as the search endpoint above. Returns `404 Not Found` if no event 
 
 **Response format:** Single `TeachingEvent` object including its nested `Building` (same shape as a single item from the
 search response).
-
-**Notes:**
-
-- Data served from local PostgreSQL cache — not a live CRM call.
-- The `Building` is always eagerly loaded (joined) in this query.
-- Requires `Admin` or `GetIntoTeaching` role.
-
-## Proposed changes
-- Live search the CRM. No cache.
-- Should not care about roles, like Admin or GetIntoTeaching

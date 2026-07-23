@@ -5,30 +5,9 @@ https://getintoteachingapi-test.test.teacherservices.cloud/swagger/index.html
 
 **File:** `Controllers/GetIntoTeaching/TeachingEventsController.cs:207`
 
-Adds or updates a teaching event. If the payload includes an `id` the existing event is updated, otherwise a new one is created. Persists both the event and its venue (building) to Dynamics 365 CRM and the local database cache. Requires `Admin` or `GetIntoTeaching` role.
-
-## What it does (step by step)
-
-1. **Authorization** — requires `Admin` or `GetIntoTeaching` role
-2. **Validates ReadableId** — calls `ValidateForUpsertOperation(teachingEvent)` which creates a `TeachingEventUpsertOperation` (extracts `Id` and `ReadableId`) and validates:
-   - `ReadableId` matches regex `\A[^_\W][\w-]+[^_\W]\Z`
-   - `ReadableId` is unique — queries CRM via `_crm.GetTeachingEvent(readableId)`. If a different event already has that `ReadableId`, validation fails with `"Must be unique"`
-3. **Checks ModelState** — if invalid, returns `400 Bad Request`
-4. **Persists building** — if `teachingEvent.Building` is not null:
-   - Saves building to CRM via `_crm.Save(teachingEvent.Building)`
-   - Saves building to local cache via `_store.SaveAsync(teachingEvent.Building)`
-   - Sets `teachingEvent.BuildingId = teachingEvent.Building.Id`
-5. **Persists event**:
-   - Temporarily removes `teachingEvent.Building` (to prevent a CRM error from the nested relationship)
-   - Saves event to CRM via `_crm.Save(teachingEvent)`
-   - Restores `teachingEvent.Building`
-   - Saves event (including building) to local cache via `_store.SaveAsync(teachingEvent)`
-6. **Finalises entity** — `TeachingEvent.FinaliseEntity()` runs during `ToEntity()`, before the CRM save commits. If `Building` is null on the payload but the existing event in CRM has a building, it marks the building relationship link for deletion (committed in the same transaction)
-7. **Returns** — `201 Created` with the `TeachingEvent` in the response body and a `Location` header pointing to `GET /api/teaching_events/{readableId}`
+Adds or updates a teaching event. If the payload includes an `id` the existing event is updated, otherwise a new one is created. Persists both the event and its venue (building) to Dynamics 365 CRM.
 
 ## Request
-
-Body: a `TeachingEvent` JSON object.
 
 ```json
 {
@@ -92,8 +71,6 @@ Body: a `TeachingEvent` JSON object.
 
 ### `201 Created` — event created or updated
 
-The response body contains the `TeachingEvent` (including the building if one was provided). The `Location` header points to `GET /api/teaching_events/{readableId}`.
-
 ```json
 {
   "id": "a1b2c3d4-...",
@@ -145,46 +122,3 @@ The response body contains the `TeachingEvent` (including the building if one wa
     ]
 }
 ```
-
-Possible validation failures:
-
-- `ReadableId` does not match the required pattern (`\A[^_\W][\w-]+[^_\W]\Z`)
-- `ReadableId` is not unique (another event already uses it)
-- `ReadableId` is empty
-- `Name` is empty
-- `ProviderContactEmail` is not a valid email address or exceeds 100 characters
-- `EndAt` is before `StartAt`
-- Building `Venue` is empty
-- Building `AddressPostcode` is not a valid UK postcode
-
-## Persistence order
-
-```mermaid
-flowchart TD
-    A["Request: POST /api/teaching_events\nBody: TeachingEvent"] --> B["ValidateForUpsertOperation\n(ReadableId unique + pattern)"]
-    B --> C{"ModelState\nvalid?"}
-    C -->|no| BAD["400 Bad Request"]
-    C -->|yes| D{"Building\nprovided?"}
-    D -->|yes| E["_crm.Save(Building)\n→ Dynamics 365"]
-    E --> F["_store.SaveAsync(Building)\n→ local cache"]
-    F --> G["Set BuildingId\n= Building.Id"]
-    D -->|no| H
-    G --> H["Null out Building\n(to avoid CRM error)"]
-    H --> I["_crm.Save(TeachingEvent)\n→ Dynamics 365\n━━━━━━━━━━━━━━━━\nInside ToEntity():\nFinaliseEntity checks\nif building should\nbe unlinked"]
-    I --> J["Restore Building"]
-    J --> K["_store.SaveAsync(TeachingEvent)\n→ local cache"]
-    K --> N["201 Created\nLocation: /api/teaching_events/{readableId}"]
-```
-
-## Key business rules
-
-| Rule | Detail |
-|------|--------|
-| **ReadableId uniqueness** | Checked against CRM via `_crm.GetTeachingEvent(readableId)`. Succeeds if no event has that `ReadableId`, or if the only match has the same `Id` as the payload (update scenario) |
-| **ReadableId format** | Must match `\A[^_\W][\w-]+[^_\W]\Z` — cannot start/end with underscore or non-word character, allows word characters and hyphens |
-| **Building persistence order** | Building is saved to CRM first (to generate its `Id`), then the event is saved with the building's `Id` assigned. This avoids a CRM foreign key error |
-| **Building null-out during event save** | `TeachingEvent.Building` is temporarily set to null before calling `_crm.Save()` on the event to prevent a CRM relationship error. The `Building` object is restored afterwards for the cache write |
-| **Building link removal** | If the payload has no `Building` but the existing event in CRM has one, `FinaliseEntity` marks the building relationship link for deletion during the `ToEntity()` call (committed in the same `SaveChanges` transaction) |
-| **Audience filtering** | `IsOnline` set to `false` means the event is in-person; if `isOnline = true` and `building.AddressPostcode` is not null/empty, `IsVirtual` returns `true` and `IsInPerson` returns `true` (virtual events are treated as in-person for search filtering) |
-| **ReadableId populates InternalName** | Setting the `Name` property also sets the CRM-internal `InternalName` (`msevtmgt_name`) property to the same value |
-| **Timezone hard-coded** | `InternalTimeZone` is fixed to GMT (`GmtTimeZoneCode = 85`) |
