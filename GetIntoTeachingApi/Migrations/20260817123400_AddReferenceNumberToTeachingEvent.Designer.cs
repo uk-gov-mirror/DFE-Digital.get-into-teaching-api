@@ -106,8 +106,8 @@ namespace GetIntoTeachingApi.Migrations
                     b.Property<string>("WebFeedId")
                         .HasColumnType("text");
                     
-                    b.Property<int?>("ReferenceNumber")
-                        .HasColumnType("integer");
+                    b.Property<string>("ReferenceNumber")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 

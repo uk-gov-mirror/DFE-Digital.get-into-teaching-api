@@ -121,6 +121,12 @@ namespace GetIntoTeachingApi.Migrations
 
                     b.Property<string>("WebFeedId")
                         .HasColumnType("text");
+                    
+                    b.Property<string>("ReferenceNumber")
+                        .HasColumnType("text");
+                    
+                    b.Property<string>("RegistrationEmailLink")
+                        .HasColumnType("text");
 
                     b.Property<string>("AccessibilityOptionId")
                         .HasColumnType("text");

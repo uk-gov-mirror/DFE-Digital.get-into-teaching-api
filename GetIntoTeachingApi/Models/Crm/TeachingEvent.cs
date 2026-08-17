@@ -48,7 +48,7 @@ namespace GetIntoTeachingApi.Models.Crm
             "this event (an external sign up should be used if this value is nil).")]
         public string WebFeedId { get; set; }
         [EntityField("dfe_eventreferencenumber")]
-        public int? ReferenceNumber { get; set; }
+        public string ReferenceNumber { get; set; } // NB: ReferenceNumber is a string-prefixed number in the CRM
         [EntityField("dfe_registrationemaillink")]
         public string RegistrationEmailLink { get; set; }
         [EntityField("dfe_isonlineevent")]

@@ -8,10 +8,10 @@ namespace GetIntoTeachingApi.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int?>(
+            // NB: ReferenceNumber is a string-prefixed number in the CRM, not an integer
+            migrationBuilder.AddColumn<string>(
                 name: "ReferenceNumber",
                 table: "TeachingEvents",
-                type: "integer",
                 nullable: true);
         }
 
