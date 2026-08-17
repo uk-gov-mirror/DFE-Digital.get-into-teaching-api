@@ -36,6 +36,8 @@ namespace GetIntoTeachingApiTests.Models.Crm
 
             type.GetProperty("ReadableId").Should().BeDecoratedWith<EntityFieldAttribute>(a => a.Name == "dfe_websiteeventpartialurl");
             type.GetProperty("WebFeedId").Should().BeDecoratedWith<EntityFieldAttribute>(a => a.Name == "dfe_eventwebfeedid");
+            type.GetProperty("ReferenceNumber").Should().BeDecoratedWith<EntityFieldAttribute>(a => a.Name == "dfe_eventreferencenumber");
+            type.GetProperty("RegistrationEmailLink").Should().BeDecoratedWith<EntityFieldAttribute>(a => a.Name == "dfe_registrationemaillink");
             type.GetProperty("IsOnline").Should().BeDecoratedWith<EntityFieldAttribute>(a => a.Name == "dfe_isonlineevent");
             type.GetProperty("Name").Should().BeDecoratedWith<EntityFieldAttribute>(a => a.Name == "dfe_externaleventtitle");
             type.GetProperty("InternalName").Should().BeDecoratedWith<EntityFieldAttribute>(a => a.Name == "msevtmgt_name");
