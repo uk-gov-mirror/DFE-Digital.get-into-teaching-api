@@ -11,7 +11,6 @@ namespace GetIntoTeachingApi.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "RegistrationEmailLink",
                 table: "TeachingEvents",
-                type: "string",
                 nullable: true);
         }
 

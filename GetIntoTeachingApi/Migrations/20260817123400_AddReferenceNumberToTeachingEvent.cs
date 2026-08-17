@@ -8,7 +8,7 @@ namespace GetIntoTeachingApi.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
+            migrationBuilder.AddColumn<int?>(
                 name: "ReferenceNumber",
                 table: "TeachingEvents",
                 type: "integer",
