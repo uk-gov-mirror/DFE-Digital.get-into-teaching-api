@@ -275,8 +275,14 @@ namespace GetIntoTeachingApi.Controllers.GetIntoTeaching
             var tempBuilding = teachingEvent.Building;
             teachingEvent.Building = null;
             _crm.Save(teachingEvent);
+            
+            if (teachingEvent.ReferenceNumber == null)
+            {
+                // we need to reload the teachingEvent from the CRM to fetch the CRM-assigned ReferenceNumber
+                teachingEvent.ReferenceNumber = _crm.GetTeachingEvent(teachingEvent.ReadableId).ReferenceNumber;
+            }
 
-            // Restore building before persiting to cache.
+            // Restore building before persisting to cache.
             teachingEvent.Building = tempBuilding;
             await _store.SaveAsync(teachingEvent);
         }
