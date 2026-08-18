@@ -742,6 +742,18 @@ namespace GetIntoTeachingApiTests.Services
             var result = await _store.GetTeachingEventAsync(events.First().ReadableId);
 
             result.ReadableId.Should().Be(events.First().ReadableId);
+            result.ReferenceNumber.Should().Be(events.First().ReferenceNumber);
+            result.Building.Should().NotBeNull();
+        }
+        
+        [Fact]
+        public async Task GetTeachingEventByReferenceNumberAsync_ReturnsMatchingEvent()
+        {
+            var events = await SeedMockTeachingEventsAndBuildingsAsync();
+            var result = await _store.GetTeachingEventByReferenceNumberAsync(events.First().ReferenceNumber);
+
+            result.ReadableId.Should().Be(events.First().ReadableId);
+            result.ReferenceNumber.Should().Be(events.First().ReferenceNumber);
             result.Building.Should().NotBeNull();
         }
 
@@ -933,6 +945,7 @@ namespace GetIntoTeachingApiTests.Services
             {
                 Id = Guid.NewGuid(),
                 ReadableId = "1",
+                ReferenceNumber = "A1",
                 StatusId = (int)TeachingEvent.Status.Open,
                 Name = "Event 1",
                 TypeId = (int)TeachingEvent.EventType.TrainToTeachEvent,
@@ -946,6 +959,7 @@ namespace GetIntoTeachingApiTests.Services
             {
                 Id = FindEventGuid,
                 ReadableId = "2",
+                ReferenceNumber = "A2",
                 StatusId = (int)TeachingEvent.Status.Open,
                 IsOnline = true,
                 Name = "Event 2",
@@ -959,6 +973,7 @@ namespace GetIntoTeachingApiTests.Services
             {
                 Id = Guid.NewGuid(),
                 ReadableId = "3",
+                ReferenceNumber = "A3",
                 StatusId = (int)TeachingEvent.Status.Open,
                 IsOnline = false,
                 Name = "Event 3",
@@ -971,6 +986,7 @@ namespace GetIntoTeachingApiTests.Services
             {
                 Id = Guid.NewGuid(),
                 ReadableId = "4",
+                ReferenceNumber = "A4",
                 StatusId = (int)TeachingEvent.Status.Open,
                 IsOnline = false,
                 Name = "Event 4",
@@ -984,6 +1000,7 @@ namespace GetIntoTeachingApiTests.Services
             {
                 Id = Guid.NewGuid(),
                 ReadableId = "5",
+                ReferenceNumber = "A5",
                 StatusId = (int)TeachingEvent.Status.Open,
                 Name = "Event 5",
                 IsOnline = true,
@@ -995,6 +1012,7 @@ namespace GetIntoTeachingApiTests.Services
             {
                 Id = Guid.NewGuid(),
                 ReadableId = "6",
+                ReferenceNumber = "A6",
                 StatusId = (int)TeachingEvent.Status.Open,
                 Name = "Event 6",
                 IsOnline = false,
@@ -1008,6 +1026,7 @@ namespace GetIntoTeachingApiTests.Services
             {
                 Id = Guid.NewGuid(),
                 ReadableId = "7",
+                ReferenceNumber = "A7",
                 StatusId = (int)TeachingEvent.Status.Closed,
                 Name = "Event 7",
                 IsOnline = false,
@@ -1020,6 +1039,7 @@ namespace GetIntoTeachingApiTests.Services
             {
                 Id = Guid.NewGuid(),
                 ReadableId = "8",
+                ReferenceNumber = "A8",
                 Name = "Event 8",
                 IsOnline = false,
                 TypeId = (int)TeachingEvent.EventType.QuestionTime,

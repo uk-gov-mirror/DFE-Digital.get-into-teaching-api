@@ -156,6 +156,18 @@ namespace GetIntoTeachingApiTests.Controllers.GetIntoTeaching
             var ok = response.Should().BeOfType<OkObjectResult>().Subject;
             ok.Value.Should().Be(teachingEvent);
         }
+        
+        [Fact]
+        public async Task GetByReferenceNumber_ReturnsTeachingEvent()
+        {
+            var teachingEvent = new TeachingEvent() { ReferenceNumber = "A123" };
+            _mockStore.Setup(mock => mock.GetTeachingEventByReferenceNumberAsync(teachingEvent.ReferenceNumber)).ReturnsAsync(teachingEvent);
+
+            var response = await _controller.GetByReferenceNumber(teachingEvent.ReferenceNumber);
+
+            var ok = response.Should().BeOfType<OkObjectResult>().Subject;
+            ok.Value.Should().Be(teachingEvent);
+        }
 
         [Fact]
         public async Task Get_WithMissingEvent_ReturnsNotFound()

@@ -97,7 +97,7 @@ namespace GetIntoTeachingApi.Controllers.GetIntoTeaching
         [PrivateShortTermResponseCache]
         [Route("{readableId}")]
         [SwaggerOperation(
-            Summary = "Retrieves an event.",
+            Summary = "Retrieves an event by ReadableId.",
             OperationId = "GetTeachingEvent",
             Tags = new[] { "Teaching Events" })]
         [ProducesResponseType(typeof(TeachingEvent), StatusCodes.Status200OK)]
@@ -105,6 +105,27 @@ namespace GetIntoTeachingApi.Controllers.GetIntoTeaching
         public async Task<IActionResult> Get([FromRoute, SwaggerParameter("The `readableId` of the `TeachingEvent`.", Required = true)] string readableId)
         {
             var teachingEvent = await _store.GetTeachingEventAsync(readableId);
+
+            if (teachingEvent == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(teachingEvent);
+        }
+        
+        [HttpGet]
+        [PrivateShortTermResponseCache]
+        [Route("reference/{referenceNumber}")]
+        [SwaggerOperation(
+            Summary = "Retrieves an event by ReferenceNumber.",
+            OperationId = "GetTeachingEventByReferenceNumber",
+            Tags = new[] { "Teaching Events" })]
+        [ProducesResponseType(typeof(TeachingEvent), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetByReferenceNumber([FromRoute, SwaggerParameter("The `referenceNumber` of the `TeachingEvent`.", Required = true)] string referenceNumber)
+        {
+            var teachingEvent = await _store.GetTeachingEventByReferenceNumberAsync(referenceNumber);
 
             if (teachingEvent == null)
             {

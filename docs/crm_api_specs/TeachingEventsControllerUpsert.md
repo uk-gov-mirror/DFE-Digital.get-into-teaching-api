@@ -20,6 +20,7 @@ Adds or updates a teaching event. If the payload includes an `id` the existing e
   "startAt": "2024-06-01T09:00:00Z",
   "endAt": "2024-06-01T17:00:00Z",
   "isOnline": false,
+  "registrationEmailLink": "registration@test.test",
   "building": {
     "venue": "Venue Name",
     "addressLine1": "123 Street",
@@ -40,6 +41,7 @@ Adds or updates a teaching event. If the payload includes an `id` the existing e
 | `startAt` | `DateTime` | **Yes** | Event start time |
 | `endAt` | `DateTime` | **Yes** | Event end time; must be >= `startAt` |
 | `isOnline` | `bool` | No | Whether the event is online |
+| `registrationEmailLink` | `string` | No | An email address of weblink for registering for the event |
 | `building` | `TeachingEventBuilding` | No | Venue details; if provided, the building is persisted first and linked to the event |
 | `webFeedId` | `string` | No | If set, the API will accept new attendees for this event (external sign-up used if nil) |
 | `summary` | `string` | No | Short event summary |
@@ -77,6 +79,7 @@ Adds or updates a teaching event. If the payload includes an `id` the existing e
   "typeId": 222750000,
   "statusId": 222750000,
   "readableId": "my-event-2024",
+  "referenceNumber": "A1234",
   "name": "My Event",
   "summary": "A summary of the event",
   "description": "A full description of the event",
@@ -105,6 +108,7 @@ Adds or updates a teaching event. If the payload includes an `id` the existing e
   "providersList": null,
   "regionId": null,
   "scribbleId": null,
+  "registrationEmailLink": "registration@test.test",
   "accessibilityOptions": []
 }
 ```
