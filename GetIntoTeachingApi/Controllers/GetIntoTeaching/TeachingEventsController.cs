@@ -264,6 +264,47 @@ namespace GetIntoTeachingApi.Controllers.GetIntoTeaching
                 return;
             }
 
+            // Load the existing building from the store if an ID is provided
+            if (teachingEvent.Building.Id != null && teachingEvent.Building.Venue == null)
+            {
+                var buildingRecord = _store.GetTeachingEventBuildings()
+                    .FirstOrDefault(m => m.Id == teachingEvent.Building.Id);
+                if (buildingRecord != null)
+                {
+                    teachingEvent.Building.AddressCity ??= buildingRecord.AddressCity;
+                    teachingEvent.Building.AddressLine1 ??= buildingRecord.AddressLine1;
+                    teachingEvent.Building.AddressLine2 ??= buildingRecord.AddressLine2;
+                    teachingEvent.Building.AddressLine3 ??= buildingRecord.AddressLine3;
+                    teachingEvent.Building.AddressPostcode ??= buildingRecord.AddressPostcode;
+                    teachingEvent.Building.Coordinate ??= buildingRecord.Coordinate;
+                    teachingEvent.Building.ImageUrl ??= buildingRecord.ImageUrl;
+                    teachingEvent.Building.Venue ??= buildingRecord.Venue;
+                }
+            }
+            
+            // Search for an existing building if only a postcode and venue are provided (online events)
+            if (teachingEvent.Building.Venue != null && teachingEvent.Building.AddressPostcode != null &&
+                teachingEvent.Building.Id == null && 
+                teachingEvent.Building.AddressLine1 == null && 
+                teachingEvent.Building.AddressLine2 == null && 
+                teachingEvent.Building.AddressLine3 == null &&
+                teachingEvent.Building.AddressCity == null)
+            {
+                var buildingRecord = _store.GetTeachingEventBuildings()
+                    .FirstOrDefault(m => m.AddressPostcode == teachingEvent.Building.AddressPostcode && m.Venue == teachingEvent.Building.Venue);
+                if (buildingRecord != null)
+                {
+                    teachingEvent.Building.Id ??= buildingRecord.Id;
+                    teachingEvent.Building.AddressCity ??= buildingRecord.AddressCity;
+                    teachingEvent.Building.AddressLine1 ??= buildingRecord.AddressLine1;
+                    teachingEvent.Building.AddressLine2 ??= buildingRecord.AddressLine2;
+                    teachingEvent.Building.AddressLine3 ??= buildingRecord.AddressLine3;
+                    teachingEvent.Building.Coordinate ??= buildingRecord.Coordinate;
+                    teachingEvent.Building.ImageUrl ??= buildingRecord.ImageUrl;
+                    teachingEvent.Building.Venue ??= buildingRecord.Venue;
+                }
+            }
+
             _crm.Save(teachingEvent.Building);
             await _store.SaveAsync(teachingEvent.Building);
             teachingEvent.BuildingId = teachingEvent.Building.Id;
@@ -279,7 +320,11 @@ namespace GetIntoTeachingApi.Controllers.GetIntoTeaching
             if (teachingEvent.ReferenceNumber == null)
             {
                 // we need to reload the teachingEvent from the CRM to fetch the CRM-assigned ReferenceNumber
-                teachingEvent.ReferenceNumber = _crm.GetTeachingEvent(teachingEvent.ReadableId).ReferenceNumber;
+                var crmTeachingEvent = _crm.GetTeachingEvent(teachingEvent.ReadableId);
+                if (crmTeachingEvent != null)
+                {
+                    teachingEvent.ReferenceNumber = crmTeachingEvent.ReferenceNumber;    
+                }
             }
 
             // Restore building before persisting to cache.
