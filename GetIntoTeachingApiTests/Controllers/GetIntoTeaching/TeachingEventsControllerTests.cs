@@ -156,6 +156,29 @@ namespace GetIntoTeachingApiTests.Controllers.GetIntoTeaching
             var ok = response.Should().BeOfType<OkObjectResult>().Subject;
             ok.Value.Should().Be(teachingEvent);
         }
+        
+        [Fact]
+        public async Task GetByReferenceNumber_ReturnsTeachingEvent()
+        {
+            var teachingEvent = new TeachingEvent() { ReferenceNumber = "A123" };
+            _mockStore.Setup(mock => mock.GetTeachingEventByReferenceNumberAsync(teachingEvent.ReferenceNumber)).ReturnsAsync(teachingEvent);
+
+            var response = await _controller.GetByReferenceNumber(teachingEvent.ReferenceNumber);
+
+            var ok = response.Should().BeOfType<OkObjectResult>().Subject;
+            ok.Value.Should().Be(teachingEvent);
+        }
+        
+        [Fact]
+        public async Task GetByReferenceNumber_ReturnsNotFound()
+        {
+            var teachingEvent = new TeachingEvent() { ReferenceNumber = "A123" };
+            _mockStore.Setup(mock => mock.GetTeachingEventByReferenceNumberAsync(teachingEvent.ReferenceNumber)).ReturnsAsync(teachingEvent);
+
+            var response = await _controller.GetByReferenceNumber("MISSING");
+            
+            response.Should().BeOfType<NotFoundResult>();
+        }
 
         [Fact]
         public async Task Get_WithMissingEvent_ReturnsNotFound()
@@ -254,7 +277,7 @@ namespace GetIntoTeachingApiTests.Controllers.GetIntoTeaching
         }
 
         [Fact]
-        public async Task Upsert_WhenReadableIdIsNotUnique_RepondsWithValidationErrorAsync()
+        public async Task Upsert_WhenReadableIdIsNotUnique_RespondsWithValidationErrorAsync()
         {
             var existingTeachingEvent = new TeachingEvent() { Id = Guid.NewGuid(), ReadableId = "existing" };
             _mockCrm.Setup(m => m.GetTeachingEvent("existing")).Returns(existingTeachingEvent);
@@ -289,14 +312,69 @@ namespace GetIntoTeachingApiTests.Controllers.GetIntoTeaching
         }
 
         [Fact]
-        public async Task Upsert_ValidRequestWithBuilding_SavesInCrmAndCaches()
+        public async Task Upsert_ValidRequestWithExistingBuilding_SavesInCrmAndCaches()
         {
             const string testName = "test";
             var buildingId = Guid.NewGuid();
-            var newBuilding = new TeachingEventBuilding() { Id = buildingId };
+            var readableId = "1234-readable-id";
+            var referenceNumber = "A1234";
+            var existingBuilding = new TeachingEventBuilding() { Id = buildingId };
+            var newTeachingEvent = new TeachingEvent() { Name = testName, Building = existingBuilding, ReadableId = readableId };
+            var crmTeachingEvent = new TeachingEvent() { ReferenceNumber = referenceNumber };
+            var mockBuildings = new List<TeachingEventBuilding>()
+                {
+                    new TeachingEventBuilding() { 
+                        Id = buildingId,
+                        Venue = "Venue Name",
+                        AddressLine1 = "Address line 1",
+                        AddressLine2 = "Address line 2",
+                        AddressLine3 = "Address line 3",
+                        AddressCity = "City",
+                        AddressPostcode = "WC1A 1AA",
+                        Coordinate = null,
+                        ImageUrl = "http://test.test/test",
+                    }
+                }
+                .AsQueryable();
+            
+            _mockCrm.Setup(mock => mock.Save(existingBuilding)).Verifiable();
+            _mockCrm.Setup(mock => mock.Save(It.Is<TeachingEvent>(e => e.BuildingId == buildingId))).Verifiable();
+            _mockCrm.Setup(mock => mock.GetTeachingEvent(readableId)).Returns(crmTeachingEvent).Verifiable();
+            
+            _mockStore.Setup(mock => mock.GetTeachingEventBuildings()).Returns(mockBuildings);
+            _mockStore.Setup(mock => mock.SaveAsync(existingBuilding)).Verifiable();
+            _mockStore.Setup(mock => mock.SaveAsync(newTeachingEvent)).Verifiable();
+
+            var response = await _controller.Upsert(newTeachingEvent, null);
+
+            _mockCrm.Verify();
+            _mockStore.Verify();
+            var created = response.Should().BeOfType<CreatedAtActionResult>().Subject;
+            var teachingEvent = created.Value.Should().BeAssignableTo<TeachingEvent>().Subject;
+            teachingEvent.Name.Should().Be(testName);
+            teachingEvent.ReadableId.Should().Be(readableId);
+            teachingEvent.ReferenceNumber.Should().Be(referenceNumber);
+            teachingEvent.Building.Should().Be(existingBuilding);
+            teachingEvent.BuildingId.Should().Be(buildingId);
+            teachingEvent.Building.Venue.Should().Be("Venue Name");
+            teachingEvent.Building.AddressLine1.Should().Be("Address line 1");
+            teachingEvent.Building.AddressLine2.Should().Be("Address line 2");
+            teachingEvent.Building.AddressLine3.Should().Be("Address line 3");
+            teachingEvent.Building.AddressCity.Should().Be("City");
+            teachingEvent.Building.AddressPostcode.Should().Be("WC1A 1AA");
+            teachingEvent.Building.Coordinate.Should().Be(null);
+            teachingEvent.Building.ImageUrl.Should().Be("http://test.test/test");
+        }
+        
+        [Fact]
+        public async Task Upsert_ValidRequestWithNewBuilding_SavesInCrmAndCaches()
+        {
+            const string testName = "test";
+            var buildingId = Guid.NewGuid();
+            var newBuilding = new TeachingEventBuilding() { Venue = "New Building",  AddressLine1 = "123 Old Street", AddressCity = "Londontown", AddressPostcode = "WC1A 1AA" };
             var newTeachingEvent = new TeachingEvent() { Name = testName, Building = newBuilding };
             _mockCrm.Setup(mock => mock.Save(newBuilding)).Verifiable();
-            _mockCrm.Setup(mock => mock.Save(It.Is<TeachingEvent>(e => e.BuildingId == buildingId))).Verifiable();
+            _mockCrm.Setup(mock => mock.Save(newTeachingEvent)).Verifiable();
             _mockStore.Setup(mock => mock.SaveAsync(newBuilding)).Verifiable();
             _mockStore.Setup(mock => mock.SaveAsync(newTeachingEvent)).Verifiable();
 
@@ -308,6 +386,103 @@ namespace GetIntoTeachingApiTests.Controllers.GetIntoTeaching
             var teachingEvent = created.Value.Should().BeAssignableTo<TeachingEvent>().Subject;
             teachingEvent.Name.Should().Be(testName);
             teachingEvent.Building.Should().Be(newBuilding);
+            teachingEvent.Building.Venue.Should().Be(newBuilding.Venue);
+        }
+        
+        [Fact]
+        public async Task Upsert_ValidRequestWithMatchedOnlineBuilding_SavesInCrmAndCaches()
+        {
+            const string testName = "test";
+            var buildingId = Guid.NewGuid();
+            var newBuilding = new TeachingEventBuilding() { Venue = "Venue Name", AddressPostcode = "WC1A 1AA" };
+            var newTeachingEvent = new TeachingEvent() { Name = testName, Building = newBuilding };
+            var mockBuildings = new List<TeachingEventBuilding>()
+                {
+                    new TeachingEventBuilding() { 
+                        Id = buildingId,
+                        Venue = "Venue Name",
+                        AddressLine1 = "Address line 1",
+                        AddressLine2 = "Address line 2",
+                        AddressLine3 = "Address line 3",
+                        AddressCity = "City",
+                        AddressPostcode = "WC1A 1AA",
+                        Coordinate = null,
+                        ImageUrl = "http://test.test/test",
+                    }
+                }
+                .AsQueryable();
+            _mockCrm.Setup(mock => mock.Save(newBuilding)).Verifiable();
+            _mockCrm.Setup(mock => mock.Save(newTeachingEvent)).Verifiable();
+            
+            _mockStore.Setup(mock => mock.GetTeachingEventBuildings()).Returns(mockBuildings);
+            _mockStore.Setup(mock => mock.SaveAsync(newBuilding)).Verifiable();
+            _mockStore.Setup(mock => mock.SaveAsync(newTeachingEvent)).Verifiable();
+
+            var response = await _controller.Upsert(newTeachingEvent, null);
+
+            _mockCrm.Verify();
+            _mockStore.Verify();
+            var created = response.Should().BeOfType<CreatedAtActionResult>().Subject;
+            var teachingEvent = created.Value.Should().BeAssignableTo<TeachingEvent>().Subject;
+            teachingEvent.Name.Should().Be(testName);
+            teachingEvent.Building.Should().Be(newBuilding);
+            teachingEvent.Building.Id.Should().Be(buildingId);
+            teachingEvent.Building.Venue.Should().Be("Venue Name");
+            teachingEvent.Building.AddressLine1.Should().Be("Address line 1");
+            teachingEvent.Building.AddressLine2.Should().Be("Address line 2");
+            teachingEvent.Building.AddressLine3.Should().Be("Address line 3");
+            teachingEvent.Building.AddressCity.Should().Be("City");
+            teachingEvent.Building.AddressPostcode.Should().Be("WC1A 1AA");
+            teachingEvent.Building.Coordinate.Should().Be(null);
+            teachingEvent.Building.ImageUrl.Should().Be("http://test.test/test");
+        }
+        
+         [Fact]
+        public async Task Upsert_ValidRequestWithUnmatchedOnlineBuilding_SavesInCrmAndCaches()
+        {
+            const string testName = "test";
+            var buildingId = Guid.NewGuid();
+            var newBuilding = new TeachingEventBuilding() { Venue = "Unmatched Venue Name", AddressPostcode = "WC1A 1AA" };
+            var newTeachingEvent = new TeachingEvent() { Name = testName, Building = newBuilding };
+            var mockBuildings = new List<TeachingEventBuilding>()
+                {
+                    new TeachingEventBuilding() { 
+                        Id = buildingId,
+                        Venue = "Other Name",
+                        AddressLine1 = "Other address line 1",
+                        AddressLine2 = "Other address line 2",
+                        AddressLine3 = "Other address line 3",
+                        AddressCity = "Other city",
+                        AddressPostcode = "SW1A 2BB",
+                        Coordinate = null,
+                        ImageUrl = "http://test.test/othertest",
+                    }
+                }
+                .AsQueryable();
+            _mockCrm.Setup(mock => mock.Save(newBuilding)).Verifiable();
+            _mockCrm.Setup(mock => mock.Save(newTeachingEvent)).Verifiable();
+            
+            _mockStore.Setup(mock => mock.GetTeachingEventBuildings()).Returns(mockBuildings);
+            _mockStore.Setup(mock => mock.SaveAsync(newBuilding)).Verifiable();
+            _mockStore.Setup(mock => mock.SaveAsync(newTeachingEvent)).Verifiable();
+
+            var response = await _controller.Upsert(newTeachingEvent, null);
+
+            _mockCrm.Verify();
+            _mockStore.Verify();
+            var created = response.Should().BeOfType<CreatedAtActionResult>().Subject;
+            var teachingEvent = created.Value.Should().BeAssignableTo<TeachingEvent>().Subject;
+            teachingEvent.Name.Should().Be(testName);
+            teachingEvent.Building.Should().Be(newBuilding);
+            teachingEvent.Building.Id.Should().NotBe(buildingId);
+            teachingEvent.Building.Venue.Should().Be("Unmatched Venue Name");
+            teachingEvent.Building.AddressLine1.Should().Be(null);
+            teachingEvent.Building.AddressLine2.Should().Be(null);
+            teachingEvent.Building.AddressLine3.Should().Be(null);
+            teachingEvent.Building.AddressCity.Should().Be(null);
+            teachingEvent.Building.AddressPostcode.Should().Be("WC1A 1AA");
+            teachingEvent.Building.Coordinate.Should().Be(null);
+            teachingEvent.Building.ImageUrl.Should().Be(null);
         }
 
         private static IEnumerable<TeachingEvent> MockEvents()

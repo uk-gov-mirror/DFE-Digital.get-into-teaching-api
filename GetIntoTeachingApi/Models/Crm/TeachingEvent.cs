@@ -47,6 +47,10 @@ namespace GetIntoTeachingApi.Models.Crm
         [SwaggerSchema("If set, the API will accept new attendees for " +
             "this event (an external sign up should be used if this value is nil).")]
         public string WebFeedId { get; set; }
+        [EntityField("dfe_eventreferencenumber")]
+        public string ReferenceNumber { get; set; } // NB: ReferenceNumber is a string-prefixed number in the CRM
+        [EntityField("dfe_registrationemaillink")]
+        public string RegistrationEmailLink { get; set; }
         [EntityField("dfe_isonlineevent")]
         public bool IsOnline { get; set; }
         [EntityField("dfe_externaleventtitle")]

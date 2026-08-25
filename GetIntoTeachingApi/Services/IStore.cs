@@ -26,6 +26,7 @@ namespace GetIntoTeachingApi.Services
         Task<IEnumerable<TeachingEvent>> SearchTeachingEventsAsync(TeachingEventSearchRequest request);
         Task<TeachingEvent> GetTeachingEventAsync(Guid id);
         Task<TeachingEvent> GetTeachingEventAsync(string readableId);
+        Task<TeachingEvent> GetTeachingEventByReferenceNumberAsync(string referenceNumber);
         IQueryable<TeachingEventBuilding> GetTeachingEventBuildings();
     }
 }

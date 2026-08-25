@@ -97,7 +97,7 @@ namespace GetIntoTeachingApi.Controllers.GetIntoTeaching
         [PrivateShortTermResponseCache]
         [Route("{readableId}")]
         [SwaggerOperation(
-            Summary = "Retrieves an event.",
+            Summary = "Retrieves an event by ReadableId.",
             OperationId = "GetTeachingEvent",
             Tags = new[] { "Teaching Events" })]
         [ProducesResponseType(typeof(TeachingEvent), StatusCodes.Status200OK)]
@@ -105,6 +105,27 @@ namespace GetIntoTeachingApi.Controllers.GetIntoTeaching
         public async Task<IActionResult> Get([FromRoute, SwaggerParameter("The `readableId` of the `TeachingEvent`.", Required = true)] string readableId)
         {
             var teachingEvent = await _store.GetTeachingEventAsync(readableId);
+
+            if (teachingEvent == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(teachingEvent);
+        }
+        
+        [HttpGet]
+        [PrivateShortTermResponseCache]
+        [Route("reference/{referenceNumber}")]
+        [SwaggerOperation(
+            Summary = "Retrieves an event by ReferenceNumber.",
+            OperationId = "GetTeachingEventByReferenceNumber",
+            Tags = new[] { "Teaching Events" })]
+        [ProducesResponseType(typeof(TeachingEvent), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetByReferenceNumber([FromRoute, SwaggerParameter("The `referenceNumber` of the `TeachingEvent`.", Required = true)] string referenceNumber)
+        {
+            var teachingEvent = await _store.GetTeachingEventByReferenceNumberAsync(referenceNumber);
 
             if (teachingEvent == null)
             {
@@ -243,6 +264,47 @@ namespace GetIntoTeachingApi.Controllers.GetIntoTeaching
                 return;
             }
 
+            // Load the existing building from the store if an ID is provided
+            if (teachingEvent.Building.Id != null && teachingEvent.Building.Venue == null)
+            {
+                var buildingRecord = _store.GetTeachingEventBuildings()
+                    .FirstOrDefault(m => m.Id == teachingEvent.Building.Id);
+                if (buildingRecord != null)
+                {
+                    teachingEvent.Building.AddressCity ??= buildingRecord.AddressCity;
+                    teachingEvent.Building.AddressLine1 ??= buildingRecord.AddressLine1;
+                    teachingEvent.Building.AddressLine2 ??= buildingRecord.AddressLine2;
+                    teachingEvent.Building.AddressLine3 ??= buildingRecord.AddressLine3;
+                    teachingEvent.Building.AddressPostcode ??= buildingRecord.AddressPostcode;
+                    teachingEvent.Building.Coordinate ??= buildingRecord.Coordinate;
+                    teachingEvent.Building.ImageUrl ??= buildingRecord.ImageUrl;
+                    teachingEvent.Building.Venue ??= buildingRecord.Venue;
+                }
+            }
+            
+            // Search for an existing building if only a postcode and venue are provided (online events)
+            if (teachingEvent.Building.Venue != null && teachingEvent.Building.AddressPostcode != null &&
+                teachingEvent.Building.Id == null && 
+                teachingEvent.Building.AddressLine1 == null && 
+                teachingEvent.Building.AddressLine2 == null && 
+                teachingEvent.Building.AddressLine3 == null &&
+                teachingEvent.Building.AddressCity == null)
+            {
+                var buildingRecord = _store.GetTeachingEventBuildings()
+                    .FirstOrDefault(m => m.AddressPostcode == teachingEvent.Building.AddressPostcode && m.Venue == teachingEvent.Building.Venue);
+                if (buildingRecord != null)
+                {
+                    teachingEvent.Building.Id ??= buildingRecord.Id;
+                    teachingEvent.Building.AddressCity ??= buildingRecord.AddressCity;
+                    teachingEvent.Building.AddressLine1 ??= buildingRecord.AddressLine1;
+                    teachingEvent.Building.AddressLine2 ??= buildingRecord.AddressLine2;
+                    teachingEvent.Building.AddressLine3 ??= buildingRecord.AddressLine3;
+                    teachingEvent.Building.Coordinate ??= buildingRecord.Coordinate;
+                    teachingEvent.Building.ImageUrl ??= buildingRecord.ImageUrl;
+                    teachingEvent.Building.Venue ??= buildingRecord.Venue;
+                }
+            }
+
             _crm.Save(teachingEvent.Building);
             await _store.SaveAsync(teachingEvent.Building);
             teachingEvent.BuildingId = teachingEvent.Building.Id;
@@ -254,8 +316,18 @@ namespace GetIntoTeachingApi.Controllers.GetIntoTeaching
             var tempBuilding = teachingEvent.Building;
             teachingEvent.Building = null;
             _crm.Save(teachingEvent);
+            
+            if (teachingEvent.ReferenceNumber == null)
+            {
+                // we need to reload the teachingEvent from the CRM to fetch the CRM-assigned ReferenceNumber
+                var crmTeachingEvent = _crm.GetTeachingEvent(teachingEvent.ReadableId);
+                if (crmTeachingEvent != null)
+                {
+                    teachingEvent.ReferenceNumber = crmTeachingEvent.ReferenceNumber;    
+                }
+            }
 
-            // Restore building before persiting to cache.
+            // Restore building before persisting to cache.
             teachingEvent.Building = tempBuilding;
             await _store.SaveAsync(teachingEvent);
         }

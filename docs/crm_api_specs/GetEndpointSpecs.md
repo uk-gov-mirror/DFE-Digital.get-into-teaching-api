@@ -1541,3 +1541,18 @@ field mapping below).
 
 **Response format:** Single `TeachingEvent` object including its nested `Building` (same shape as a single item from the
 search response).
+
+## **Endpoint:** `GET /api/teaching_events/reference/{referenceNumber}`
+
+**Description:** Returns a single teaching event by its Reference Number (`referenceNumber`).
+
+**Path parameters:**
+
+| Parameter    | Type   | Description                                       |
+|--------------|--------|---------------------------------------------------|
+| `referenceNumber` | string | The event's `dfe_eventreferencenumber` identifier |
+
+**CRM-side mapping:** Same field mapping as the search endpoint above. Returns `404 Not Found` if no event
+
+**Response format:** Single `TeachingEvent` object including its nested `Building` (same shape as a single item from the
+search response).

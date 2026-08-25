@@ -179,6 +179,11 @@ namespace GetIntoTeachingApi.Services
             return await _dbContext.TeachingEvents.AsNoTracking().Include(e => e.Building).FirstOrDefaultAsync(e => e.ReadableId == readableId);
         }
 
+        public async Task<TeachingEvent> GetTeachingEventByReferenceNumberAsync(string referenceNumber)
+        {
+            return await _dbContext.TeachingEvents.AsNoTracking().Include(e => e.Building).FirstOrDefaultAsync(e => e.ReferenceNumber == referenceNumber);
+        }
+
         public IQueryable<TeachingEventBuilding> GetTeachingEventBuildings()
         {
             return _dbContext.TeachingEventBuildings.AsNoTracking();
